@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Mobile-Built WebOS</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body, html { width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+        
+        /* Desktop Background */
+        #desktop { width: 100%; height: 100%; background: linear-gradient(135deg, #1e1e2f, #3a3a52); position: relative; overflow: hidden; }
+        
+        /* Taskbar / Dock */
+        #taskbar { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 16px; display: flex; gap: 15px; border: 1px solid rgba(255, 255, 255, 0.2); z-index: 9999; }
+        .dock-icon { width: 45px; height: 45px; background: rgba(255, 255, 255, 0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 20px; cursor: pointer; transition: transform 0.2s; border: none; }
+        .dock-icon:active { transform: scale(0.9); }
+
+        /* Window Structure */
+        .window { position: absolute; width: 300px; background: #2a2a3a; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; display: none; flex-direction: column; z-index: 10; }
+        .window-header { background: #1a1a26; padding: 10px; color: white; display: flex; justify-content: space-between; align-items: center; cursor: move; font-size: 14px; font-weight: bold; }
+        .close-btn { background: #ff5f56; border: none; width: 12px; height: 12px; border-radius: 50%; cursor: pointer; }
+        .window-content { padding: 15px; color: white; flex-grow: 1; min-height: 180px; }
+
+        /* Custom App Styling */
+        textarea { width: 100%; height: 120px; background: #1e1e24; border: 1px solid #444; color: white; border-radius: 6px; padding: 8px; resize: none; font-family: inherit; }
+        .calc-screen { width: 100%; background: #1e1e24; border: 1px solid #444; color: #00ff00; padding: 10px; font-family: monospace; text-align: right; margin-bottom: 10px; font-size: 18px; border-radius: 4px; }
+        .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+        .calc-btn { padding: 10px; background: #3e3e56; border: none; color: white; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .calc-btn:active { background: #5e5e76; }
+    </style>
+</head>
+<body>
+
+<div id="desktop">
+    <!-- App 1: Notes -->
+    <div id="notes-win" class="window" style="top: 15%; left: 10%;">
+        <div class="window-header" onmousedown="dragStart(event, 'notes-win')" ontouchstart="dragStart(event, 'notes-win')">
+            <span>📝 Notes App</span>
+            <button class="close-btn" onclick="toggleWin('notes-win')"></button>
+        </div>
+        <div class="window-content">
+            <textarea placeholder="Type your devlogs or thoughts here... (Saves automatically!)" id="note-input" oninput="localStorage.setItem('savedNote', this.value)"></textarea>
+        </div>
+    </div>
+
+    <!-- App 2: Calculator -->
+    <div id="calc-win" class="window" style="top: 25%; left: 15%;">
+        <div class="window-header" onmousedown="dragStart(event, 'calc-win')" ontouchstart="dragStart(event, 'calc-win')">
+            <span>🧮 Calculator</span>
+            <button class="close-btn" onclick="toggleWin('calc-win')"></button>
+        </div>
+        <div class="window-content">
+            <div id="screen" class="calc-screen">0</div>
+            <div class="calc-grid">
+                <button class="calc-btn" onclick="press('7')">7</button>
+                <button class="calc-btn" onclick="press('8')">8</button>
+                <button class="calc-btn" onclick="press('9')">9</button>
+                <button class="calc-btn" onclick="press('/')">/</button>
+                <button class="calc-btn" onclick="press('4')">4</button>
+                <button class="calc-btn" onclick="press('5')">5</button>
+                <button class="calc-btn" onclick="press('6')">6</button>
+                <button class="calc-btn" onclick="press('*')">*</button>
+                <button class="calc-btn" onclick="press('1')">1</button>
+                <button class="calc-btn" onclick="press('2')">2</button>
+                <button class="calc-btn" onclick="press('3')">3</button>
+                <button class="calc-btn" onclick="press('-')">-</button>
+                <button class="calc-btn" onclick="press('C')">C</button>
+                <button class="calc-btn" onclick="press('0')">0</button>
+                <button class="calc-btn" onclick="solve()">=</button>
+                <button class="calc-btn" onclick="press('+')">+</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Dock -->
+    <div id="taskbar">
+        <button class="dock-icon" onclick="toggleWin('notes-win')">📝</button>
+        <button class="dock-icon" onclick="toggleWin('calc-win')">🧮</button>
+    </div>
+</div>
+
+<script>
+    // Load saved notes
+    document.getElementById('note-input').value = localStorage.getItem('savedNote') || '';
+
+    // Open/Close Window System
+    let topZ = 10;
+    function toggleWin(id) {
+        const win = document.getElementById(id);
+        if (win.style.display === 'flex') {
+            win.style.display = 'none';
+        } else {
+            win.style.display = 'flex';
+            topZ++;
+            win.style.zindex = topZ;
+        }
+    }
+
+    // Draggable Window System (Supports both Desktop Mouse and Mobile Touch)
+    function dragStart(e, id) {
+        const win = document.getElementById(id);
+        topZ++;
+        win.style.zIndex = topZ;
+        
+        let clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        let clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+        
+        let pos1 = clientX - win.offsetLeft;
+        let pos2 = clientY - win.offsetTop;
+
+        function dragging(ev) {
+            let moveX = ev.type.includes('touch') ? ev.touches[0].clientX : ev.clientX;
+            let moveY = ev.type.includes('touch') ? ev.touches[0].clientY : ev.clientY;
+            win.style.left = (moveX - pos1) + "px";
+            win.style.top = (moveY - pos2) + "px";
+        }
+
+        function dragEnd() {
+            document.removeEventListener('mousemove', dragging);
+            document.removeEventListener('mouseup', dragEnd);
+            document.removeEventListener('touchmove', dragging);
+            document.removeEventListener('touchend', dragEnd);
+        }
+
+        document.addEventListener('mousemove', dragging);
+        document.addEventListener('mouseup', dragEnd);
+        document.addEventListener('touchmove', dragging);
+        document.addEventListener('touchend', dragEnd);
+    }
+
+    // Calculator Logic
+    let expr = "";
+    function press(val) {
+        if(val === 'C') { expr = ""; document.getElementById('screen').innerText = "0"; }
+        else { expr += val; document.getElementById('screen').innerText = expr; }
+    }
+    function solve() {
+        try { document.getElementById('screen').innerText = eval(expr); expr = eval(expr).toString(); }
+        catch { document.getElementById('screen').innerText = "Error"; expr = ""; }
+    }
+</script>
+
+</body>
+</html>
